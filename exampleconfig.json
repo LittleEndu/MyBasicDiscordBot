@@ -1,0 +1,9 @@
+{
+  "token": "XXXXXXXXXXXXXXXXXXXXXXXX.XXXXXX.XXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  "auto_load": [
+    "core"
+  ],
+  "unsafe_to_expose": [
+    "token"
+  ]
+}
