@@ -22,6 +22,11 @@ class Core:
     def __init__(self, bot: basicbot.BasicBot):
         self.bot = bot
         self._last_result = None
+        if os.path.isfile('prefixes.json'):
+            with open('prefixes.json') as file_in:
+                self.prefixes = json.load(file_in)
+        else:
+            self.prefixes = {}
 
     @commands.command(name='help')
     async def _help(self, ctx):
@@ -60,14 +65,25 @@ class Core:
         """Sets prefix for the bot in this server"""
         if not (ctx.author.guild_permissions.administrator or self.bot.is_owner(ctx.author)):
             raise commands.CheckFailure("You can't change the prefix")
-        # TODO: Implement
+        self.prefixes.setdefault(str(ctx.guild.id), []).append(prefix)
+        with open('prefixes.json', "w") as file_out:
+            json.dump(self.prefixes, file_out)
+        if not await helper.react_or_false(ctx):
+            await ctx.send("Added the prefix")
 
     @commands.command()
     async def removeprefix(self, ctx, prefix: str):
         """Removes prefix for the bot from this server"""
+        if not self.prefixes:
+            await ctx.send("No prefixes to remove")
+            return
         if not (ctx.author.guild_permissions.administrator or self.bot.is_owner(ctx.author)):
             raise commands.CheckFailure("You can't change the prefix")
-        # TODO: Implement
+        self.prefixes.setdefault(str(ctx.guild.id), []).remove(prefix)
+        with open('prefixes.json', "w") as file_out:
+            json.dump(self.prefixes, file_out)
+        if not await helper.react_or_false(ctx):
+            await ctx.send("Removed the prefix")
 
     @commands.command(hidden=True, aliases=['reloadconfig', 'reloadjson', 'loadjson'])
     @commands.is_owner()

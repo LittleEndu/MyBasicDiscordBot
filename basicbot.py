@@ -5,6 +5,7 @@ import itertools
 import json
 import logging
 import os
+import os.path
 import sys
 
 import discord
@@ -75,7 +76,7 @@ class BasicBot(commands.Bot):
 
     # Other functions
 
-    @commands.command()
+    @commands.command(aliases = ['reloadall'])
     @commands.is_owner()
     async def reload(self, ctx):
         import importlib
@@ -89,8 +90,12 @@ class BasicBot(commands.Bot):
 
 
 async def _prefix(bot: BasicBot, message: discord.Message):
-    # TODO: Actual prefix support
     prefixes = []
+    if os.path.isfile('prefixes.json'):
+        guild_id = message.guild.id
+        with open('prefixes.json') as file_in:
+            data = json.load(file_in)
+        prefixes = data.get(str(guild_id),[])
 
     return commands.when_mentioned_or(*prefixes)(bot, message)
 
