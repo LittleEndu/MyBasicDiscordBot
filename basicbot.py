@@ -1,6 +1,8 @@
 import asyncio
 import concurrent.futures
 import datetime
+import importlib
+import inspect
 import itertools
 import json
 import logging
@@ -8,6 +10,7 @@ import os
 import os.path
 import shutil
 import sys
+import traceback
 
 import discord
 import logbook
@@ -41,9 +44,11 @@ class BasicBot(commands.Bot):
             logbook.FileHandler("logs/" + str(datetime.datetime.now().date()) + ".dms.log", level="TRACE", bubble=True))
         self.dms.handlers.append(logbook.StreamHandler(sys.stderr, level='INFO', bubble=True))
 
-        # Remove default help and add reload
+        # Remove default help and add other commands
         self.remove_command("help")
-        self.add_command(self.reload)
+        for i in [self.reload, self.load, self.unload, self.debug, self.loadconfig, self._latency]:
+            self.add_command(i)
+        self._last_result = None
 
         # alias for when I might fck up
         self.info = self.logger.info
@@ -77,19 +82,152 @@ class BasicBot(commands.Bot):
             return
         await helper.handle_error(ctx, err)
 
-    # Other functions
+    # Commands
 
-    @commands.command(aliases = ['reloadall'])
+    @commands.command(aliases=['reloadall', 'loadall'], hidden=True)
     @commands.is_owner()
     async def reload(self, ctx):
-        import importlib
-        for v in globals().values():
-            try:
-                importlib.reload(v)
-            except TypeError:
-                pass
-        if not await helper.react_or_false(ctx):
-            await ctx.send("Reloaded all base modules")
+        for ext in set([i.replace("cogs.", "") for i in self.extensions.keys()] + self.config.get('auto_load', [])):
+            await self.load_cog(ctx, ext, True)
+        await ctx.send("Reloaded already loaded cogs and cogs under auto_load")
+
+    async def load_cog(self, ctx, extension, silent=False):
+        self.logger.info("Loading " + extension)
+        try:
+            importlib.import_module("cogs.{}".format(extension))
+        except Exception as err:
+            self.logger.error("".join(traceback.format_exception(type(err), err.__cause__, err.__traceback__)))
+            await ctx.send("Can not load `{}` -> `{}`".format(extension, err))
+            return
+        try:
+            self.unload_extension("cogs.{}".format(extension))
+        except:
+            pass
+        try:
+            self.load_extension("cogs.{}".format(extension))
+        except Exception as err:
+            self.logger.error("".join(traceback.format_exception(type(err), err.__cause__, err.__traceback__)))
+            await ctx.send("\u26a0 Could not load `{}` -> `{}`".format(extension, err))
+        else:
+            if not silent and not await helper.react_or_false(ctx):
+                await ctx.send("Loaded `{}`.".format(extension))
+
+    @commands.command(hidden=True, aliases=['reloadconfig', 'reloadjson', 'loadjson'])
+    @commands.is_owner()
+    async def loadconfig(self, ctx):
+        """
+        Reload the config
+        """
+        try:
+            with open("config.json") as file_in:
+                config = json.load(file_in)
+            self.config = config
+            if not await helper.react_or_false(ctx):
+                await ctx.send("Successfully loaded config")
+        except Exception as err:
+            await ctx.send("Could not reload config: `{}`".format(err))
+
+    @commands.command(hidden=True)
+    @commands.is_owner()
+    async def load(self, ctx, *, extension: str):
+        """
+        Load an extension.
+        """
+        await self.load_cog(ctx, extension)
+
+    @commands.command(hidden=True)
+    @commands.is_owner()
+    async def unload(self, ctx, *, extension: str):
+        """Unloads an extension."""
+        self.logger.info("Unloading " + extension)
+        try:
+            self.unload_extension("cogs.{}".format(extension))
+        except Exception as err:
+            self.logger.error("".join(traceback.format_exception(type(err), err.__cause__, err.__traceback__)))
+            await ctx.send("Could not unload `{}` -> `{}`".format(extension, err))
+        else:
+            if not await helper.react_or_false(ctx):
+                await ctx.send("Unloaded `{}`.".format(extension))
+
+    @commands.command(hidden=True)
+    @commands.is_owner()
+    async def debug(self, ctx, *, command: str):
+        """
+        Runs a debug command
+        """
+        self.trace(f"Running debug command: {ctx.message.content}")
+        env = {
+            'bot': self,
+            'ctx': ctx,
+            'channel': ctx.channel,
+            'author': ctx.author,
+            'guild': ctx.guild,
+            'message': ctx.message,
+            '_': self._last_result
+        }
+        env.update(globals())
+
+        has_been_awaited = False
+        result_class = None
+        try:
+            result = eval(command, env)
+            if inspect.isawaitable(result):
+                result = await result
+                has_been_awaited = True
+            if result is not None:
+                self._last_result = result
+        except Exception as err:
+            result = repr(err)
+            result_class = "{}.{}".format(err.__class__.__module__, err.__class__.__name__)
+        if result_class is None:
+            result_class = "{}.{}".format(result.__class__.__module__, result.__class__.__name__)
+        result_too_big = len(str(result)) > 2000
+        if any([(self.config.get(i) in str(result)) if i in self.config.keys() else False
+                for i in self.config.get("unsafe_to_expose")]):
+            await ctx.send("Doing this would reveal sensitive info!!!")
+            return
+        else:
+            if ctx.channel.permissions_for(ctx.me).embed_links:
+                color = discord.Color(0)
+                if isinstance(result, discord.Colour):
+                    color = result
+                emb = discord.Embed(description="{}".format(result)[:2000],
+                                    color=color)
+                emb.set_footer(text="{} {} {}".format(
+                    result_class,
+                    "| Command has been awaited" if has_been_awaited else "",
+                    "| Result has been cut" if result_too_big else "")
+                )
+                await ctx.send(embed=emb)
+            else:
+                await ctx.send("```xl\nOutput: {}\nOutput class: {} {} {}```".format(
+                    str(result).replace("`", "\u02cb")[:1500],
+                    result_class,
+                    "| Command has been awaited" if has_been_awaited else "",
+                    "| Result has been cut" if result_too_big else ""))
+
+    @commands.command(name='latency', aliases=['ping', 'marco'])
+    @commands.cooldown(1, 60, commands.BucketType.user)
+    async def _latency(self, ctx):
+        """Reports bot latency"""
+        if ctx.invoked_with == 'ping':
+            msg = await ctx.send("Pong")
+        elif ctx.invoked_with == 'marco':
+            msg = await ctx.send("Polo")
+        else:
+            msg = await ctx.send("\u200b")
+        latency = msg.created_at.timestamp() - ctx.message.created_at.timestamp()
+        await ctx.send("That took {}ms. Discord reports latency of {}ms".format(int(latency * 1000),
+                                                                                int(self.latency * 1000)))
+
+    @_latency.error
+    async def latency_error(self, ctx, error):
+        if isinstance(error, commands.CommandOnCooldown):
+            if self.is_owner(ctx.author):
+                await ctx.reinvoke()
+                return
+        else:
+            helper.handle_error(ctx, error)
 
 
 async def _prefix(bot: BasicBot, message: discord.Message):
@@ -98,7 +236,7 @@ async def _prefix(bot: BasicBot, message: discord.Message):
         guild_id = message.guild.id
         with open('prefixes.json') as file_in:
             data = json.load(file_in)
-        prefixes = data.get(str(guild_id),[])
+        prefixes = data.get(str(guild_id), [])
 
     return commands.when_mentioned_or(*prefixes)(bot, message)
 
