@@ -1,21 +1,14 @@
-import asyncio
 import importlib
 import inspect
 import json
-import random
-import traceback
 import os
+import traceback
 
-import aiohttp
-import asyncpg
 import discord
-import io
-from PIL import Image
 from discord.ext import commands
 
-import helper
-
 import basicbot
+import helper
 
 
 class Core:
