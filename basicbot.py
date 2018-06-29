@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import os.path
+import shutil
 import sys
 
 import discord
@@ -20,6 +21,8 @@ class BasicBot(commands.Bot):
         super().__init__(command_prefix=_prefix)
 
         # Get config
+        if not os.path.isfile("config.json"):
+            shutil.copy('exampleconfig.json', 'config.json')
         with open("config.json") as file_in:
             config = json.load(file_in)
         self.config = config
