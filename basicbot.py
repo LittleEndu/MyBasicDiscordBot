@@ -82,7 +82,7 @@ class BasicBot(commands.Bot):
             return
         await helper.handle_error(ctx, err)
 
-    # Commands
+    # region Commands
 
     @commands.command(aliases=['reloadall', 'loadall'], hidden=True)
     @commands.is_owner()
@@ -228,6 +228,8 @@ class BasicBot(commands.Bot):
                 return
         else:
             helper.handle_error(ctx, error)
+            
+    # endregion
 
 
 async def _prefix(bot: BasicBot, message: discord.Message):
