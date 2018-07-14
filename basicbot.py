@@ -172,8 +172,8 @@ class BasicBot(commands.Bot):
         try:
             result = eval(command, env)
             if inspect.isawaitable(result):
-                result = await result
                 has_been_awaited = True
+                result = await result
             if result is not None:
                 self._last_result = result
         except Exception as err:
