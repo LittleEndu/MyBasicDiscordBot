@@ -235,6 +235,7 @@ class BasicBot(commands.Bot):
 
 
 async def _prefix(bot: BasicBot, message: discord.Message):
+    # TODO: Maybe cache the prefixes so we don't kill the hard-drive
     prefixes = []
     if os.path.isfile('prefixes.json'):
         guild_id = message.guild.id
