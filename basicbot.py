@@ -248,6 +248,7 @@ async def _prefix(bot: BasicBot, message: discord.Message):
 if __name__ == '__main__':
     bb = BasicBot()
     bb.logger.info("\n\n\n")
+    bb.logger.info(f"Running python version {sys.version}")
     bb.logger.info("Initializing")
     if bb.config.get('token', ""):
         for ex in bb.config.get('auto_load', []):
