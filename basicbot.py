@@ -225,7 +225,7 @@ class BasicBot(commands.Bot):
     @_latency.error
     async def latency_error(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):
-            if self.is_owner(ctx.author):
+            if await self.is_owner(ctx.author):
                 await ctx.reinvoke()
                 return
         else:
