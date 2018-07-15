@@ -206,7 +206,7 @@ class BasicBot(commands.Bot):
                     "| Command has been awaited" if has_been_awaited else "",
                     "| Result has been cut" if result_too_big else ""))
 
-    @commands.command(name='latency', aliases=['ping', 'marco'])
+    @commands.command(name='latency', aliases=['ping', 'marco', 'hello', 'hi', 'hey'])
     @commands.cooldown(1, 60, commands.BucketType.user)
     async def _latency(self, ctx):
         """Reports bot latency"""
@@ -214,6 +214,8 @@ class BasicBot(commands.Bot):
             msg = await ctx.send("Pong")
         elif ctx.invoked_with == 'marco':
             msg = await ctx.send("Polo")
+        elif ctx.invoked_with in ['hello', 'hi', 'hey']:
+            msg = await ctx.send("Hey")
         else:
             msg = await ctx.send("\u200b")
         latency = msg.created_at.timestamp() - ctx.message.created_at.timestamp()
