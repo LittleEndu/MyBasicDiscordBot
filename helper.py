@@ -16,6 +16,8 @@ async def handle_error(ctx, err):
     if isinstance(err, commands.UserInputError) and can_send:
         await ctx.send("\u274c Bad argument: {}".format(' '.join(err.args)))
     elif isinstance(err, commands.errors.CheckFailure) and can_send:
+        if ctx.command.hidden:
+            return await react_or_false(ctx, ("\u2753",))
         await ctx.send("\u274c Check failure. " + str(err))
     elif isinstance(err, commands.errors.CommandNotFound):
         await react_or_false(ctx, ("\u2753",))
