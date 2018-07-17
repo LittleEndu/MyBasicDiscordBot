@@ -39,10 +39,6 @@ class BasicBot(commands.Bot):
             logbook.FileHandler("logs/" + str(datetime.datetime.now().date()) + ".log", level="TRACE", bubble=True))
         self.logger.handlers.append(logbook.StreamHandler(sys.stderr, level='INFO', bubble=True))
         logging.root.setLevel(logging.INFO)
-        self.dms = logbook.Logger("DirectMessage")
-        self.dms.handlers.append(
-            logbook.FileHandler("logs/" + str(datetime.datetime.now().date()) + ".dms.log", level="TRACE", bubble=True))
-        self.dms.handlers.append(logbook.StreamHandler(sys.stderr, level='INFO', bubble=True))
 
         # Remove default help and add other commands
         self.remove_command("help")
@@ -60,14 +56,7 @@ class BasicBot(commands.Bot):
         self.logger.info(self.user.id)
         self.logger.info("{} commands".format(len(self.commands)))
         self.logger.info('------')
-
-    async def on_message(self, message: discord.Message):
-        if isinstance(message.channel, discord.DMChannel):
-            if not message.author == self.user:
-                self.dms.info("New DM from {}\n{}".format(message.author, message.content))
-            else:
-                self.dms.info("Sending a DM to {}\n{}".format(message.channel.recipient, message.content))
-        await self.process_commands(message)
+        
 
     async def get_prefix(self, message: discord.Message):
         if isinstance(message.channel, discord.DMChannel):
